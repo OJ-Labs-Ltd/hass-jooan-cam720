@@ -37,8 +37,34 @@ OS, build it from source: the fork is pure Go and cross-compiles in one command.
 Step-by-step instructions for every architecture are in the fork's
 [CAM720.md](https://github.com/OJ-Labs-Ltd/go2rtc-cam720/blob/cam720/CAM720.md#building-for-your-architecture).
 
-Point Home Assistant's go2rtc at that build, or set the integration's go2rtc URL
-option to it, and talk-back works. Video, listen-in and pan/tilt work without it.
+Point the integration's go2rtc URL option at that build and talk-back works.
+Video, listen-in and pan/tilt work without it.
+
+### Announcements and TTS (service)
+
+`jooan_cam720.talk` plays any audio Home Assistant can produce (a media file,
+a URL, or TTS) to the camera's speaker. It pushes the audio to the go2rtc fork,
+which transcodes to the G.711 A-law the camera expects. Example:
+
+```yaml
+action: jooan_cam720.talk
+data:
+  media: media-source://tts/cloud?message=Dinner's ready
+```
+
+### Live hold-to-talk (microphone)
+
+For the browser microphone button, the camera has to be a stream in the go2rtc
+instance Home Assistant uses for WebRTC. Run the fork (see the deploy folder in
+the fork repo for a systemd unit) and either:
+
+- add the camera to the WebRTC Camera / go2rtc integration pointing at the
+  fork's address, so only this camera uses it; or
+- set Home Assistant's own go2rtc to the fork build, which enables two-way for
+  every go2rtc camera.
+
+The fork serves the stream over RTSP (`:8556`) and WebRTC (`:8557`); its API is
+on `127.0.0.1:1985`.
 
 ## How the token read works
 
