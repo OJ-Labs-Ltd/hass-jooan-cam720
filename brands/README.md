@@ -1,17 +1,43 @@
-# Brand assets for home-assistant/brands
+# Brand assets and HACS-default submission
 
-To list in HACS *default* (searchable by name), the domain `jooan_cam720` must
-be registered in https://github.com/home-assistant/brands under
-`custom_integrations/jooan_cam720/` with:
+The integration already installs via HACS as a **custom repository** (add this
+repo's URL in HACS). To also get it into HACS *default* (searchable by name),
+two public PRs are needed. Everything is staged here and ready to submit.
 
-- `icon.png`  — 256x256, square, transparent background
-- `icon@2x.png` — 512x512 (optional but recommended)
-- `logo.png`  — optional wordmark
+## Icon
 
-Add the approved image(s) here, then open a PR to home-assistant/brands moving
-them to `custom_integrations/jooan_cam720/`. Until then the integration installs
-fine as a HACS *custom repository* (add this repo's URL in HACS).
+`custom_integrations/jooan_cam720/icon.png` (256x256) and `icon@2x.png`
+(512x512) are a neutral placeholder camera mark, not a Jooan trademark. Swap
+them for your preferred artwork before submitting if you like.
 
-No image is committed yet: it needs a logo you're happy to publish (Jooan's
-mark is a trademark; use only with appropriate rights, or a neutral camera
-icon).
+## 1. home-assistant/brands PR (do first; must merge before step 2)
+
+```sh
+gh repo fork home-assistant/brands --clone
+cd brands
+mkdir -p custom_integrations/jooan_cam720
+cp /path/to/hass-jooan-cam720/brands/custom_integrations/jooan_cam720/*.png \
+   custom_integrations/jooan_cam720/
+git checkout -b jooan_cam720
+git add custom_integrations/jooan_cam720
+git commit -m "Add jooan_cam720"
+git push -u origin jooan_cam720
+gh pr create --repo home-assistant/brands --fill
+```
+
+## 2. hacs/default PR (after step 1 merges)
+
+```sh
+gh repo fork hacs/default --clone
+cd default
+# add the repo to the "integration" list, keeping the file sorted:
+grep -q OJ-Labs-Ltd/hass-jooan-cam720 integration || \
+  printf 'OJ-Labs-Ltd/hass-jooan-cam720\n' >> integration && sort -o integration integration
+git checkout -b add-jooan-cam720
+git commit -am "Add OJ-Labs-Ltd/hass-jooan-cam720"
+git push -u origin add-jooan-cam720
+gh pr create --repo hacs/default --fill
+```
+
+HACS runs its validation on the PR; this repo already passes everything except
+the brands check, which step 1 clears.
