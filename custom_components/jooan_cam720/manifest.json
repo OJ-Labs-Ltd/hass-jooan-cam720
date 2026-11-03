@@ -3,10 +3,11 @@
   "name": "Jooan CAM720",
   "codeowners": ["@oashaikh"],
   "config_flow": true,
+  "dhcp": [{ "macaddress": "743336*" }],
   "documentation": "https://github.com/OJ-Labs-Ltd/hass-jooan-cam720",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/OJ-Labs-Ltd/hass-jooan-cam720/issues",
   "requirements": [],
-  "version": "0.1.0"
+  "version": "0.2.0"
 }

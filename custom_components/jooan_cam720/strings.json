@@ -1,5 +1,6 @@
 {
   "config": {
+    "flow_title": "{name}",
     "step": {
       "user": {
         "title": "Add Jooan CAM720",
@@ -16,6 +17,29 @@
     },
     "abort": {
       "already_configured": "This camera is already added."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Jooan CAM720 options",
+        "description": "URL of the go2rtc build with CAM720 support, used for two-way talk.",
+        "data": {
+          "go2rtc_url": "go2rtc URL"
+        }
+      }
+    }
+  },
+  "services": {
+    "talk": {
+      "name": "Talk to camera",
+      "description": "Play audio to the camera's speaker over the LAN.",
+      "fields": {
+        "media": {
+          "name": "Media",
+          "description": "A media URL or file path ffmpeg can read."
+        }
+      }
     }
   }
 }

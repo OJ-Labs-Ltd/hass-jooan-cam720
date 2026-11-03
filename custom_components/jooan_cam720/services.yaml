@@ -1,0 +1,13 @@
+talk:
+  name: Talk to camera
+  description: >-
+    Play an audio file, URL or TTS output to the camera's speaker over the LAN
+    (via the go2rtc fork). Audio is transcoded to G.711 A-law at 16 kHz.
+  fields:
+    media:
+      name: Media
+      description: A media URL or file path ffmpeg can read (e.g. a TTS media_source URL).
+      required: true
+      example: "media-source://tts/..."
+      selector:
+        text:
