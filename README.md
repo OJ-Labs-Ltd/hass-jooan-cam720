@@ -24,6 +24,14 @@ the integration reads everything else off the camera over the LAN.
 The integration reads the device UID, model and the talk-back token locally and
 adds the camera. You can then block the camera from the internet at your router.
 
+### A brand-new or factory-reset camera
+
+On a camera that has never been set up (or has just been factory reset), the
+admin password is the factory default `admin123` and the token is already in
+flash, so the steps above work with no Jooan account at all. If you bought the
+camera used, or set it up through the Jooan app before, the admin password was
+likely changed; use that one.
+
 ## Two-way talk
 
 Live talk-back is carried by go2rtc with CAM720 support, which upstream go2rtc
