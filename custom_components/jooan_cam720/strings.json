@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add Jooan CAM720",
+        "description": "Enter the camera's IP and admin web password. The factory default is admin123. The talk-back token is read from the camera over the LAN; Jooan's cloud is not used.",
+        "data": {
+          "host": "Camera IP address",
+          "password": "Admin password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the camera on the LAN.",
+      "invalid_auth": "The admin password was rejected."
+    },
+    "abort": {
+      "already_configured": "This camera is already added."
+    }
+  }
+}
