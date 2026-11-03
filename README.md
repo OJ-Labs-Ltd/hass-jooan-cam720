@@ -4,6 +4,15 @@ Local, cloud-free control of Jooan CAM720 cameras (JA-A12 / W8-U). No Jooan
 account, no Jooan servers. Add a camera by entering its IP and admin password;
 the integration reads everything else off the camera over the LAN.
 
+## Why local
+
+Out of the box the camera keeps a connection open to the vendor's cloud (Jooan
+on Alibaba IoT, `use1api.jooaniot.com`), and your video and audio pass through
+servers you don't control. This integration needs none of that. It reads the
+camera's own token off the device, talks to it directly on your network, and
+lets you block it from the internet entirely. Video, microphone audio, pan/tilt
+and two-way talk all stay on your LAN.
+
 ## What works over the LAN, with Jooan blocked
 
 - Live video and camera-microphone audio (RTSP).
