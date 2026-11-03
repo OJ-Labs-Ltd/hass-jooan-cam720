@@ -71,17 +71,43 @@ data:
 
 ### Live hold-to-talk (microphone)
 
-For the browser microphone button, the camera has to be a stream in the go2rtc
-instance Home Assistant uses for WebRTC. Run the fork (see the deploy folder in
-the fork repo for a systemd unit) and either:
+For a press-and-hold microphone button on the camera card, the go2rtc that
+serves the camera's WebRTC must speak `cam720://` and must carry the camera's
+speaker as a backchannel alongside the video. This works with the
+[WebRTC Camera](https://github.com/AlexxIT/WebRTC) (AlexxIT) card, verified on a
+JA-A12:
 
-- add the camera to the WebRTC Camera / go2rtc integration pointing at the
-  fork's address, so only this camera uses it; or
-- set Home Assistant's own go2rtc to the fork build, which enables two-way for
-  every go2rtc camera.
+1. **Give that integration the fork binary.** Replace the go2rtc binary it runs
+   (in your HA config dir, named like `go2rtc-1.9.9`) with this fork's build of
+   the same or newer version. The integration only checks the binary prints
+   `go2rtc` for `-v`, so the fork is accepted and not re-downloaded.
+2. **Define a combined stream per lens** in `go2rtc.yaml` in your HA config dir:
+   the RTSP video source and the `cam720://` speaker source together.
 
-The fork serves the stream over RTSP (`:8556`) and WebRTC (`:8557`); its API is
-on `127.0.0.1:1985`.
+   ```yaml
+   streams:
+     crib0:
+       - rtsp://admin:ADMIN_PASSWORD@CAMERA_IP:554/live/ch00_0
+       - cam720://CAMERA_IP/UID?token=DEVICE_PWD
+     crib1:
+       - rtsp://admin:ADMIN_PASSWORD@CAMERA_IP:554/live/ch01_0
+       - cam720://CAMERA_IP/UID?token=DEVICE_PWD
+   ```
+3. **Point the card at the stream and enable the mic:**
+
+   ```yaml
+   type: custom:webrtc-camera
+   url: crib0
+   media: video,audio,microphone
+   ```
+
+Reload the WebRTC Camera integration. The card shows a microphone button; press
+and hold to talk. The live feed is the RTSP source; the mic routes through the
+`cam720://` backchannel to the camera speaker. This leaves Home Assistant's own
+core go2rtc, and every other camera, untouched.
+
+If the WebRTC Camera integration later auto-updates, it may re-download the
+stock go2rtc and the mic will stop working; re-apply step 1.
 
 ## How the token read works
 
