@@ -29,10 +29,16 @@ adds the camera. You can then block the camera from the internet at your router.
 Live talk-back is carried by go2rtc with CAM720 support, which upstream go2rtc
 does not yet have. Use the companion fork:
 
-- OJ-Labs-Ltd/go2rtc-cam720 (adds the `cam720://` source)
+- [OJ-Labs-Ltd/go2rtc-cam720](https://github.com/OJ-Labs-Ltd/go2rtc-cam720)
+  (adds the `cam720://` source)
 
-Point Home Assistant's go2rtc at that build and the camera's WebRTC view gains a
-microphone button. Video, listen-in and pan/tilt work without it.
+A `linux/arm64` binary is attached to each release. For any other processor or
+OS, build it from source: the fork is pure Go and cross-compiles in one command.
+Step-by-step instructions for every architecture are in the fork's
+[CAM720.md](https://github.com/OJ-Labs-Ltd/go2rtc-cam720/blob/cam720/CAM720.md#building-for-your-architecture).
+
+Point Home Assistant's go2rtc at that build, or set the integration's go2rtc URL
+option to it, and talk-back works. Video, listen-in and pan/tilt work without it.
 
 ## How the token read works
 
