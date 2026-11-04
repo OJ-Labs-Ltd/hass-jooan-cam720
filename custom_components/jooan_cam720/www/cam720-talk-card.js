@@ -106,9 +106,15 @@ class Cam720TalkCard extends HTMLElement {
         btn.textContent = label;
       }
     };
+    // Walkie-talkie: Listen is muted while talking, otherwise the phone speaker
+    // plays the camera's mic (which hears its own speaker) back into the phone
+    // mic and the voice echoes round the loop.
+    let wasMuted = true;
     const down = (e) => {
       e.preventDefault();
       if (this._talking) return;
+      const v = this._video();
+      if (v) { wasMuted = v.muted; v.muted = true; }
       this._talk(true);
       clearTimeout(readyTimer);
       const warm = Date.now() - (this._lastRelease || 0) < 3500;
@@ -123,6 +129,8 @@ class Cam720TalkCard extends HTMLElement {
       this._talk(false);
       this._lastRelease = Date.now();
       setBtn('idle');
+      const v = this._video();
+      if (v && !wasMuted) v.muted = false;
     };
     btn.addEventListener('pointerdown', down);
     for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, up);
@@ -147,6 +155,9 @@ class Cam720TalkCard extends HTMLElement {
       this._sender = s;
       this._mic = s.track;
     }
+    // Mute the track as well as detaching it, so a sender the browser keeps
+    // alive can only ever carry silence.
+    this._mic.enabled = this._talking;
     const want = this._talking ? this._mic : null;
     if (this._sender.track !== want) {
       this._sender.replaceTrack(want).catch(() => {});
