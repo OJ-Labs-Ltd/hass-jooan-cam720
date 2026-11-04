@@ -93,6 +93,14 @@ class Cam720TalkCard extends HTMLElement {
 
     const btn = pill(label);
     bar.appendChild(btn);
+    // Browsers only expose the microphone on https (or localhost). The
+    // companion app on home Wi-Fi usually loads the plain-http internal URL.
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      btn.textContent = 'Talk needs https';
+      btn.style.opacity = '0.6';
+      btn.title = 'Open Home Assistant over https to use the microphone';
+      return;
+    }
     let readyTimer = null;
     const setBtn = (state) => {
       if (state === 'connecting') {
