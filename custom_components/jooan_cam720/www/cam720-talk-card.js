@@ -1,22 +1,24 @@
-// CAM720 Talk Camera card: live video + listen, plus a press-and-hold Talk
-// button that opens the microphone to the camera speaker only while held.
+// CAM720 camera card: clean live WebRTC video, a Listen toggle, and a
+// press-and-hold Talk button. Audio is only sent to the camera while the
+// button is held: the mic sender is detached (replaceTrack(null)) otherwise,
+// so nothing, not even silence, reaches the camera speaker.
 //
-// It wraps the WebRTC Camera (webrtc-camera) element for transport, so it works
-// anywhere that card does, including the Home Assistant companion app (grant the
-// app microphone access in the OS settings). The mic track is negotiated once
-// (one permission prompt) and kept muted until the button is pressed.
+// Works anywhere the WebRTC Camera (webrtc-camera) element works, including
+// the Home Assistant companion app (grant it microphone access in OS settings).
 //
 // Card config:
 //   type: custom:cam720-talk-card
-//   stream: crib0        # go2rtc stream name (video + cam720 backchannel)
-//   title: Talk          # optional button label
+//   stream: crib0     # go2rtc stream name
+//   talk: true        # false = video + listen only (no mic, no Talk button)
+//   title: Hold to talk
+//   ready_delay: 1500  # ms of 'Connecting…' before 'Talk now' (cold start)
 
 class Cam720TalkCard extends HTMLElement {
   setConfig(config) {
     if (!config || !config.stream) {
       throw new Error('cam720-talk-card: "stream" is required');
     }
-    this.config = config;
+    this.config = { talk: true, ...config };
   }
 
   set hass(hass) {
@@ -29,16 +31,18 @@ class Cam720TalkCard extends HTMLElement {
   }
 
   async _build() {
-    // webrtc-camera may not be registered yet when this card first renders.
     await customElements.whenDefined('webrtc-camera');
+    const talk = this.config.talk !== false;
 
     this.style.position = 'relative';
     this.style.display = 'block';
 
     const cam = document.createElement('webrtc-camera');
-    // Force WebRTC only: two-way audio needs it, and it avoids the MSE media
-    // player (play/seek controls) in favour of a clean live stream.
-    cam.setConfig({ url: this.config.stream, media: 'video,audio,microphone', mode: 'webrtc' });
+    cam.setConfig({
+      url: this.config.stream,
+      media: talk ? 'video,audio,microphone' : 'video,audio',
+      mode: 'webrtc',
+    });
     if (this._hass) cam.hass = this._hass;
     this.appendChild(cam);
     this._cam = cam;
@@ -61,7 +65,6 @@ class Cam720TalkCard extends HTMLElement {
       return b;
     };
 
-    // Listen: toggle the camera audio (muted by default for autoplay).
     const listen = pill('Listen');
     listen.addEventListener('click', (e) => {
       e.preventDefault();
@@ -70,34 +73,89 @@ class Cam720TalkCard extends HTMLElement {
       v.muted = !v.muted;
       listen.textContent = v.muted ? 'Listen' : 'Mute';
       listen.style.background = v.muted ? 'rgba(0,0,0,0.55)' : 'rgba(40,120,214,0.9)';
-      if (!v.muted) v.play && v.play().catch(() => {});
+      if (!v.muted && v.play) v.play().catch(() => {});
     });
     bar.appendChild(listen);
 
-    // Talk: press and hold.
-    const btn = pill(this.config.title || 'Hold to talk');
+    if (!talk) return;
+
+    // Talk: press and hold. The camera needs ~1.5 s to arm its speaker from
+    // cold, so show a loader until then; if it was used in the last few
+    // seconds the speaker is still on and talking can start immediately.
+    const label = this.config.title || 'Hold to talk';
+    const readyMs = Number(this.config.ready_delay ?? 1500);
+    const style = document.createElement('style');
+    style.textContent = '@keyframes cam720spin{to{transform:rotate(360deg)}}'
+      + '.cam720-spin{display:inline-block;width:14px;height:14px;margin-right:8px;'
+      + 'vertical-align:-2px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;'
+      + 'border-radius:50%;animation:cam720spin .8s linear infinite}';
+    this.appendChild(style);
+
+    const btn = pill(label);
     bar.appendChild(btn);
-    const down = (e) => { e.preventDefault(); this._setMic(true); btn.style.background = 'rgba(214,40,40,0.9)'; btn.textContent = 'Talking…'; };
-    const up = (e) => { e.preventDefault(); this._setMic(false); btn.style.background = 'rgba(0,0,0,0.55)'; btn.textContent = this.config.title || 'Hold to talk'; };
+    let readyTimer = null;
+    const setBtn = (state) => {
+      if (state === 'connecting') {
+        btn.style.background = 'rgba(214,140,20,0.92)';
+        btn.innerHTML = '<span class="cam720-spin"></span>Connecting…';
+      } else if (state === 'live') {
+        btn.style.background = 'rgba(214,40,40,0.92)';
+        btn.textContent = '● Talk now';
+      } else {
+        btn.style.background = 'rgba(0,0,0,0.55)';
+        btn.textContent = label;
+      }
+    };
+    const down = (e) => {
+      e.preventDefault();
+      if (this._talking) return;
+      this._talk(true);
+      clearTimeout(readyTimer);
+      const warm = Date.now() - (this._lastRelease || 0) < 3500;
+      if (warm || readyMs <= 0) { setBtn('live'); return; }
+      setBtn('connecting');
+      readyTimer = setTimeout(() => { if (this._talking) setBtn('live'); }, readyMs);
+    };
+    const up = (e) => {
+      e.preventDefault();
+      if (!this._talking) return;
+      clearTimeout(readyTimer);
+      this._talk(false);
+      this._lastRelease = Date.now();
+      setBtn('idle');
+    };
     btn.addEventListener('pointerdown', down);
     for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, up);
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
 
-    // Keep the mic muted whenever not pressed, re-applying as the track appears
-    // or the connection re-establishes.
+    // Track the mic sender across (re)connections and keep it detached
+    // unless the button is held.
     this._talking = false;
-    this._timer = setInterval(() => {
-      const t = this._micTrack();
-      if (t) t.enabled = this._talking;
-    }, 400);
+    this._timer = setInterval(() => this._sync(), 300);
   }
 
-  _micTrack() {
+  _sync() {
     const pc = this._cam && this._cam.pc;
-    if (!pc || !pc.getSenders) return null;
-    for (const s of pc.getSenders()) {
-      if (s.track && s.track.kind === 'audio') return s.track;
+    if (!pc || !pc.getSenders) return;
+    if (pc !== this._pc) {
+      this._pc = pc;
+      this._sender = null;
     }
-    return null;
+    if (!this._sender) {
+      const s = pc.getSenders().find((x) => x.track && x.track.kind === 'audio');
+      if (!s) return;
+      this._sender = s;
+      this._mic = s.track;
+    }
+    const want = this._talking ? this._mic : null;
+    if (this._sender.track !== want) {
+      this._sender.replaceTrack(want).catch(() => {});
+    }
+  }
+
+  _talk(on) {
+    this._talking = on;
+    this._sync();
   }
 
   _video() {
@@ -105,12 +163,6 @@ class Cam720TalkCard extends HTMLElement {
     return this._cam.video
       || this._cam.querySelector('video')
       || (this._cam.shadowRoot && this._cam.shadowRoot.querySelector('video'));
-  }
-
-  _setMic(on) {
-    this._talking = on;
-    const t = this._micTrack();
-    if (t) t.enabled = on;
   }
 
   disconnectedCallback() {
@@ -125,5 +177,5 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'cam720-talk-card',
   name: 'CAM720 Talk Camera',
-  description: 'CAM720 camera with press-and-hold talk',
+  description: 'CAM720 camera with live video, listen, and press-and-hold talk',
 });
