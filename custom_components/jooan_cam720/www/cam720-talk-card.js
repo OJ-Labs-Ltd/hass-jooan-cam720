@@ -65,7 +65,7 @@ class Cam720TalkCard extends HTMLElement {
     this.appendChild(bar);
     const row = () => {
       const r = document.createElement('div');
-      Object.assign(r.style, { display: 'flex', gap: '8px' });
+      Object.assign(r.style, { display: 'grid', gridAutoFlow: 'column', gridAutoColumns: '1fr', gap: '8px' });
       bar.appendChild(r);
       return r;
     };
@@ -119,7 +119,7 @@ class Cam720TalkCard extends HTMLElement {
     }
     if (this.config.flip !== false) this._applyFlip();
 
-    if (this.config.ptz?.service) {
+    if (this.config.ptz && this.config.ptz.service) {
       const pad = row();
       for (const [dir, label] of [['left', '◀'], ['up', '▲'], ['down', '▼'], ['right', '▶']]) {
         const b = pill(label);
@@ -146,7 +146,7 @@ class Cam720TalkCard extends HTMLElement {
     // cold, so show a loader until then; if it was used in the last few
     // seconds the speaker is still on and talking can start immediately.
     const label = this.config.title || 'Hold to talk';
-    const readyMs = Number(this.config.ready_delay ?? 1500);
+    const readyMs = this.config.ready_delay == null ? 1500 : Number(this.config.ready_delay);
     const style = document.createElement('style');
     style.textContent = '@keyframes cam720spin{to{transform:rotate(360deg)}}'
       + '.cam720-spin{display:inline-block;width:14px;height:14px;margin-right:8px;'
@@ -159,7 +159,7 @@ class Cam720TalkCard extends HTMLElement {
     bar.prepend(btn);
     // Browsers only expose the microphone on https (or localhost). The
     // companion app on home Wi-Fi usually loads the plain-http internal URL.
-    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       btn.textContent = 'Talk needs https';
       btn.style.opacity = '0.6';
       btn.title = 'Open Home Assistant over https to use the microphone';
@@ -283,7 +283,10 @@ class Cam720TalkCard extends HTMLElement {
 
   _flipped(axis) {
     const entity = this._flipEntity(axis);
-    if (entity) return this._hass?.states[entity]?.state === 'on';
+    if (entity) {
+      const state = this._hass && this._hass.states[entity];
+      return Boolean(state) && state.state === 'on';
+    }
     try { return localStorage.getItem(this._flipKey(axis)) === '1'; } catch (_) { return false; }
   }
 
