@@ -23,8 +23,6 @@
 //   flip_entity: input_boolean.camera_flip      # optional; share the ⇆ / ⇅
 //   flip_v_entity: input_boolean.camera_flip_v  # buttons' state across devices
 //                      # (otherwise each is kept per browser); flip: false hides them
-//   max_minutes: 5     # optional; stop the stream after this long and wait for a
-//                      # tap. For battery cameras a forgotten screen would drain.
 
 class Cam720TalkCard extends HTMLElement {
   setConfig(config) {
@@ -59,7 +57,9 @@ class Cam720TalkCard extends HTMLElement {
     if (this._hass) cam.hass = this._hass;
     this.appendChild(cam);
     this._cam = cam;
-    this._limitViewing();
+    // webrtc-camera reconnects by itself when the page is shown again.
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this._closeNow(); });
+    window.addEventListener('pagehide', () => this._closeNow());
 
     // Controls fill the card's width in rows under the picture: Talk on its
     // own row, then Listen and the flips, then the pan/tilt arrows.
@@ -275,27 +275,17 @@ class Cam720TalkCard extends HTMLElement {
     this._mic = null;
   }
 
-  // A battery camera streams for as long as a screen shows it, so after
-  // max_minutes the player is taken off the page (which closes its
-  // connection) until someone taps to watch again.
-  _limitViewing() {
-    const minutes = Number(this.config.max_minutes);
-    if (!(minutes > 0)) return;
-    clearTimeout(this._viewTimer);
-    this._viewTimer = setTimeout(() => {
-      if (this._release) this._release();
-      const resume = document.createElement('button');
-      resume.textContent = 'Paused to save the battery. Tap to watch.';
-      Object.assign(resume.style, {
-        display: 'block', width: '100%', minHeight: '180px', border: 'none', borderRadius: '12px',
-        background: '#000', color: '#fff', font: '600 16px sans-serif', cursor: 'pointer',
-      });
-      resume.addEventListener('click', () => {
-        this.replaceChild(this._cam, resume);
-        this._limitViewing();
-      });
-      this.replaceChild(resume, this._cam);
-    }, minutes * 60000);
+  // The stream ends the moment nobody can see it: app closed or put in the
+  // background, tab hidden, or another view opened. webrtc-camera would wait
+  // five seconds, and every second of live view costs a battery camera.
+  _closeNow() {
+    const cam = this._cam;
+    if (!cam || !cam.ondisconnect) return;
+    clearTimeout(cam.disconnectTID);
+    cam.disconnectTID = 0;
+    clearTimeout(cam.reconnectTID); // or a pending retry would reopen it unseen
+    cam.reconnectTID = 0;
+    cam.ondisconnect();
   }
 
   _talk(on) {
@@ -364,6 +354,7 @@ class Cam720TalkCard extends HTMLElement {
     this._timer = null;
     if (this._release) this._release();
     this._dropMic();
+    this._closeNow();
   }
 
   getCardSize() { return 4; }
