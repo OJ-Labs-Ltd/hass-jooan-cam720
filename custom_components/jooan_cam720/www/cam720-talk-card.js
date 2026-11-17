@@ -280,7 +280,7 @@ class Cam720TalkCard extends HTMLElement {
   // five seconds, and every second of live view costs a battery camera.
   _closeNow() {
     const cam = this._cam;
-    if (!cam || !cam.ondisconnect) return;
+    if (!cam || !cam.ondisconnect || !cam.video) return; // no video yet: never connected
     clearTimeout(cam.disconnectTID);
     cam.disconnectTID = 0;
     clearTimeout(cam.reconnectTID); // or a pending retry would reopen it unseen
